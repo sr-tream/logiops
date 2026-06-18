@@ -92,6 +92,30 @@ RemapButton::RemapButton(Device* dev) : DeviceFeature(dev),
     }
 }
 
+RemapButton::~RemapButton() noexcept {
+    _clearTemporaryDiverts();
+}
+
+void RemapButton::_clearTemporaryDiverts() noexcept {
+    std::lock_guard<std::mutex> lock(_button_lock);
+
+    for (const auto& control: _reprog_controls->getControls()) {
+        hidpp20::ReprogControls::ControlInfo report{};
+        report.controlID = control.second.controlID;
+        report.flags = hidpp20_reprog_rebind;
+
+        try {
+            _reprog_controls->setControlReporting(control.second.controlID, report);
+        } catch (std::exception& e) {
+            logPrintf(WARN, "%s: Failed to clear temporary diversion for CID 0x%04x: %s",
+                      _device->name().c_str(), control.second.controlID, e.what());
+        } catch (...) {
+            logPrintf(WARN, "%s: Failed to clear temporary diversion for CID 0x%04x",
+                      _device->name().c_str(), control.second.controlID);
+        }
+    }
+}
+
 void RemapButton::configure() {
     for (const auto& button: _buttons)
         button.second->configure();

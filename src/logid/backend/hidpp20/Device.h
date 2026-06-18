@@ -60,6 +60,7 @@ namespace logid::backend::hidpp20 {
         struct ResponseSlot {
             std::optional<Response> response;
             std::optional<uint8_t> feature;
+            std::optional<uint8_t> address;
             void reset();
         };
 

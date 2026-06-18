@@ -22,6 +22,11 @@
 #include <util/log.h>
 #include <algorithm>
 #include <ipc_defs.h>
+#include <atomic>
+#include <csignal>
+#include <cstring>
+#include <pthread.h>
+#include <thread>
 
 #ifndef LOGIOPS_VERSION
 #define LOGIOPS_VERSION "null"
@@ -134,7 +139,18 @@ int main(int argc, char** argv) {
     readCliOptions(argc, argv, options);
     std::shared_ptr<Configuration> config;
     std::shared_ptr<InputDevice> virtual_input;
+    sigset_t terminate_signals;
 
+    sigemptyset(&terminate_signals);
+    sigaddset(&terminate_signals, SIGTERM);
+    sigaddset(&terminate_signals, SIGINT);
+
+    int sigmask_error = pthread_sigmask(SIG_BLOCK, &terminate_signals, nullptr);
+    if (sigmask_error) {
+        logPrintf(ERROR, "Could not block termination signals: %s",
+                  std::strerror(sigmask_error));
+        return EXIT_FAILURE;
+    }
 
     /* Set stdout buff to Null so that loging system like journal
      * can actually read it.
@@ -172,12 +188,37 @@ int main(int argc, char** argv) {
 
     device_manager->enumerate();
 
+    std::atomic_bool termination_requested = false;
+    std::atomic_bool stop_signal_thread = false;
+    std::thread signal_thread([server, terminate_signals,
+                               &termination_requested, &stop_signal_thread]() {
+        int signal = 0;
+        if (sigwait(&terminate_signals, &signal) == 0) {
+            if (stop_signal_thread)
+                return;
+            termination_requested = true;
+            logPrintf(INFO, "Received signal %d, terminating.", signal);
+            server->stop();
+        }
+    });
+
     try {
         server->start();
     } catch (ipcgull::connection_failed& e) {
         logPrintf(ERROR, "Lost IPC connection, terminating.");
+        if (!termination_requested) {
+            stop_signal_thread = true;
+            pthread_kill(signal_thread.native_handle(), SIGTERM);
+        }
+        signal_thread.join();
         return EXIT_FAILURE;
     }
+
+    if (!termination_requested) {
+        stop_signal_thread = true;
+        pthread_kill(signal_thread.native_handle(), SIGTERM);
+    }
+    signal_thread.join();
 
     return EXIT_SUCCESS;
 }

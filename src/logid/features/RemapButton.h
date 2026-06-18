@@ -91,6 +91,8 @@ namespace logid::features {
 
     class RemapButton : public DeviceFeature {
     public:
+        ~RemapButton() noexcept override;
+
         void configure() final;
 
         void listen() final;
@@ -101,6 +103,8 @@ namespace logid::features {
         explicit RemapButton(Device* dev);
 
     private:
+        void _clearTemporaryDiverts() noexcept;
+
         void _buttonEvent(const std::set<uint16_t>& new_state);
 
         std::shared_ptr<backend::hidpp20::ReprogControls> _reprog_controls;

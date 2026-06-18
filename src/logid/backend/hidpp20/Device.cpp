@@ -91,6 +91,7 @@ hidpp::Report Device::sendReport(const hidpp::Report& report) {
     });
 
     response_slot.feature = report.feature();
+    response_slot.address = report.address();
 
     _sendReport(report);
 
@@ -102,12 +103,14 @@ hidpp::Report Device::sendReport(const hidpp::Report& report) {
 
     if (!valid) {
         response_slot.reset();
+        _response_cv.notify_all();
         throw TimeoutError();
     }
 
     assert(response_slot.response.has_value());
     auto response = response_slot.response.value();
     response_slot.reset();
+    _response_cv.notify_all();
 
     if (std::holds_alternative<hidpp::Report>(response)) {
         return std::get<hidpp::Report>(response);
@@ -124,25 +127,25 @@ void Device::sendReportNoACK(const hidpp::Report& report) {
 }
 
 bool Device::responseReport(const hidpp::Report& report) {
-    auto& response_slot = _responses[report.feature() % _responses.size()];
     std::lock_guard<std::mutex> lock(_response_mutex);
-    uint8_t sw_id, feature;
+    uint8_t feature;
+    uint8_t address;
 
     bool is_error = false;
     hidpp::Report::Hidpp20Error hidpp20_error{};
     if (report.isError20(hidpp20_error)) {
         is_error = true;
-        sw_id = hidpp20_error.software_id;
         feature = hidpp20_error.feature_index;
+        address = (hidpp20_error.function << 4) | (hidpp20_error.software_id & 0x0f);
     } else {
-        sw_id = report.swId();
         feature = report.feature();
+        address = report.address();
     }
 
-    if (sw_id != hidpp::softwareID)
-        return false;
+    auto& response_slot = _responses[feature % _responses.size()];
 
-    if (!response_slot.feature || response_slot.feature.value() != feature) {
+    if (!response_slot.feature || response_slot.feature.value() != feature ||
+        !response_slot.address || response_slot.address.value() != address) {
         return false;
     }
 
@@ -159,4 +162,5 @@ bool Device::responseReport(const hidpp::Report& report) {
 void Device::ResponseSlot::reset() {
     response.reset();
     feature.reset();
+    address.reset();
 }
