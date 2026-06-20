@@ -22,6 +22,8 @@
 #include <algorithm>
 #include <backend/hidpp20/features/ReprogControls.h>
 #include <cmath>
+#include <cstdlib>
+#include <util/log.h>
 
 using namespace logid::actions;
 using namespace logid::backend;
@@ -30,29 +32,58 @@ const char* TouchpadGestureAction::interface_name = "TouchpadGesture";
 
 namespace {
     static constexpr double default_scale = 4.0;
+    static constexpr int default_click_threshold = 5;
 }
 
 TouchpadGestureAction::TouchpadGestureAction(
     Device* device, config::TouchpadGestureAction& config,
-    [[maybe_unused]] const std::shared_ptr<ipcgull::node>& parent)
-    : Action(device, interface_name,
-             {{{"GetConfig", {this, &TouchpadGestureAction::getConfig, {"fingers", "scale"}}},
-               {"SetFingers", {this, &TouchpadGestureAction::setFingers, {"fingers"}}},
-               {"SetScale", {this, &TouchpadGestureAction::setScale, {"scale"}}}},
-              {},
-              {}}),
-      _config(config) {}
+    const std::shared_ptr<ipcgull::node>& parent)
+    : Action(device, interface_name, {
+            {
+                    {"GetConfig", {this, &TouchpadGestureAction::getConfig,
+                                   {"fingers", "scale", "click_threshold"}}},
+                    {"SetFingers", {this, &TouchpadGestureAction::setFingers, {"fingers"}}},
+                    {"SetScale", {this, &TouchpadGestureAction::setScale, {"scale"}}},
+                    {"SetClickThreshold",
+                     {this, &TouchpadGestureAction::setClickThreshold, {"threshold"}}}
+            },
+            {},
+            {}
+    }),
+      _click_node(parent->make_child("click")),
+      _config(config) {
+    if (_config.click.has_value()) {
+        try {
+            _click_action = Action::makeAction(device, _config.click.value(), _click_node);
+        } catch (InvalidAction& e) {
+            logPrintf(WARN, "Mapping touchpad click to invalid action");
+        }
+    }
+}
 
 void TouchpadGestureAction::press() {
     std::shared_lock lock(_config_mutex);
     _pressed = true;
-    _device->virtualTouchpad()->beginGesture(_fingers());
+    _movement = 0;
+    _pending_x = 0;
+    _pending_y = 0;
+    _touchpad_active = false;
+
+    if (!_click_action)
+        _beginTouchpadGesture();
 }
 
 void TouchpadGestureAction::release() {
     std::shared_lock lock(_config_mutex);
+    if (_touchpad_active) {
+        _device->virtualTouchpad()->endGesture();
+    } else if (_click_action && _movement <= _clickThreshold()) {
+        _click_action->press();
+        _click_action->release();
+    }
+
     _pressed = false;
-    _device->virtualTouchpad()->endGesture();
+    _touchpad_active = false;
 }
 
 void TouchpadGestureAction::move(int16_t x, int16_t y) {
@@ -61,18 +92,36 @@ void TouchpadGestureAction::move(int16_t x, int16_t y) {
         return;
 
     const auto scale = _scale();
-    _device->virtualTouchpad()->moveGesture(
-        static_cast<int>(std::lround(static_cast<double>(x) * scale)),
-        static_cast<int>(std::lround(static_cast<double>(y) * scale)));
+    const auto scaled_x =
+        static_cast<int>(std::lround(static_cast<double>(x) * scale));
+    const auto scaled_y =
+        static_cast<int>(std::lround(static_cast<double>(y) * scale));
+
+    _movement += std::abs(x) + std::abs(y);
+
+    if (!_touchpad_active) {
+        _pending_x += scaled_x;
+        _pending_y += scaled_y;
+        if (_movement <= _clickThreshold())
+            return;
+
+        _beginTouchpadGesture();
+        _device->virtualTouchpad()->moveGesture(_pending_x, _pending_y);
+        _pending_x = 0;
+        _pending_y = 0;
+        return;
+    }
+
+    _device->virtualTouchpad()->moveGesture(scaled_x, scaled_y);
 }
 
 uint8_t TouchpadGestureAction::reprogFlags() const {
     return (hidpp20::ReprogControls::TemporaryDiverted | hidpp20::ReprogControls::RawXYDiverted);
 }
 
-std::tuple<unsigned int, double> TouchpadGestureAction::getConfig() const {
+std::tuple<unsigned int, double, int> TouchpadGestureAction::getConfig() const {
     std::shared_lock lock(_config_mutex);
-    return {_fingers(), _scale()};
+    return {_fingers(), _scale(), _clickThreshold()};
 }
 
 void TouchpadGestureAction::setFingers(unsigned int fingers) {
@@ -89,6 +138,15 @@ void TouchpadGestureAction::setScale(double scale) {
     }
 }
 
+void TouchpadGestureAction::setClickThreshold(int threshold) {
+    std::unique_lock lock(_config_mutex);
+    if (threshold == default_click_threshold) {
+        _config.click_threshold.reset();
+    } else {
+        _config.click_threshold = std::max(0, threshold);
+    }
+}
+
 unsigned int TouchpadGestureAction::_fingers() const {
     return std::clamp(_config.fingers.value_or(TouchpadDevice::min_fingers),
                       TouchpadDevice::min_fingers, TouchpadDevice::max_fingers);
@@ -96,4 +154,13 @@ unsigned int TouchpadGestureAction::_fingers() const {
 
 double TouchpadGestureAction::_scale() const {
     return _config.scale.value_or(default_scale);
+}
+
+int TouchpadGestureAction::_clickThreshold() const {
+    return std::max(0, _config.click_threshold.value_or(default_click_threshold));
+}
+
+void TouchpadGestureAction::_beginTouchpadGesture() {
+    _device->virtualTouchpad()->beginGesture(_fingers());
+    _touchpad_active = true;
 }

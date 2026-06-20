@@ -29,6 +29,7 @@ add_executable(logid
         actions/Action.cpp
         actions/NullAction.cpp
         actions/KeypressAction.cpp
+        actions/CommandAction.cpp
         actions/TouchpadGestureAction.cpp
         actions/ToggleHiresScroll.cpp
         actions/ToggleSmartShift.cpp

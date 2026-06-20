@@ -38,16 +38,30 @@ namespace logid::actions {
 
         [[nodiscard]] uint8_t reprogFlags() const final;
 
-        [[nodiscard]] std::tuple<unsigned int, double> getConfig() const;
+        [[nodiscard]] std::tuple<unsigned int, double, int> getConfig() const;
 
         void setFingers(unsigned int fingers);
 
         void setScale(double scale);
 
+        void setClickThreshold(int threshold);
+
     private:
         [[nodiscard]] unsigned int _fingers() const;
 
         [[nodiscard]] double _scale() const;
+
+        [[nodiscard]] int _clickThreshold() const;
+
+        void _beginTouchpadGesture();
+
+        std::shared_ptr<ipcgull::node> _click_node;
+        std::shared_ptr<Action> _click_action;
+
+        int32_t _movement{};
+        int _pending_x{};
+        int _pending_y{};
+        bool _touchpad_active{};
 
         config::TouchpadGestureAction& _config;
     };

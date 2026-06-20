@@ -29,6 +29,8 @@ namespace logid::actions {
 
     class CycleDPI;
 
+    class CommandAction;
+
     class GestureAction;
 
     class KeypressAction;
@@ -74,19 +76,6 @@ namespace logid::config {
         KeypressAction() : signed_group<std::string>(
                 "type", "Keypress",
                 {"keys"}, &KeypressAction::keys) {
-        }
-    };
-
-    struct TouchpadGestureAction : public signed_group<std::string> {
-        typedef actions::TouchpadGestureAction action;
-        std::optional<unsigned int> fingers;
-        std::optional<double> scale;
-
-        TouchpadGestureAction() : signed_group<std::string>(
-                "type", "TouchpadGesture",
-                {"fingers", "scale"},
-                &TouchpadGestureAction::fingers,
-                &TouchpadGestureAction::scale) {
         }
     };
 
@@ -145,6 +134,18 @@ namespace logid::config {
                                                     {"profile"}, &ChangeProfile::profile) {}
     };
 
+    struct CommandAction : public signed_group<std::string> {
+        typedef actions::CommandAction action;
+        std::optional<std::string> command;
+        std::optional<std::list<std::string>> args;
+
+        CommandAction() : signed_group<std::string>(
+                "type", "Command",
+                {"command", "args"},
+                &CommandAction::command,
+                &CommandAction::args) {}
+    };
+
     typedef std::variant<
             NoAction,
             KeypressAction,
@@ -153,8 +154,26 @@ namespace logid::config {
             CycleDPI,
             ChangeDPI,
             ChangeHost,
-            ChangeProfile
+            ChangeProfile,
+            CommandAction
     > BasicAction;
+
+    struct TouchpadGestureAction : public signed_group<std::string> {
+        typedef actions::TouchpadGestureAction action;
+        std::optional<unsigned int> fingers;
+        std::optional<double> scale;
+        std::optional<int> click_threshold;
+        std::optional<BasicAction> click;
+
+        TouchpadGestureAction() : signed_group<std::string>(
+                "type", "TouchpadGesture",
+                {"fingers", "scale", "click_threshold", "click"},
+                &TouchpadGestureAction::fingers,
+                &TouchpadGestureAction::scale,
+                &TouchpadGestureAction::click_threshold,
+                &TouchpadGestureAction::click) {
+        }
+    };
 
     struct AxisGesture : public signed_group<std::string> {
         typedef actions::AxisGesture gesture;
@@ -251,6 +270,7 @@ namespace logid::config {
             ChangeDPI,
             ChangeHost,
             ChangeProfile,
+            CommandAction,
             TouchpadGestureAction,
             GestureAction
     > Action;

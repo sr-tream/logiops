@@ -18,6 +18,7 @@
 
 #include <actions/Action.h>
 #include <actions/KeypressAction.h>
+#include <actions/CommandAction.h>
 #include <actions/TouchpadGestureAction.h>
 #include <actions/ToggleSmartShift.h>
 #include <actions/ToggleHiresScroll.h>
@@ -66,6 +67,8 @@ namespace logid::actions {
             config = config::CycleDPI();
         } else if (name == KeypressAction::interface_name) {
             config = config::KeypressAction();
+        } else if (name == CommandAction::interface_name) {
+            config = config::CommandAction();
         } else if (name == TouchpadGestureAction::interface_name) {
             if constexpr (std::is_same_v<T, config::Action>) {
                 config = config::TouchpadGestureAction();
