@@ -17,6 +17,7 @@
  */
 #include <features/RemapButton.h>
 #include <actions/GestureAction.h>
+#include <actions/TouchpadGestureAction.h>
 #include <Device.h>
 #include <sstream>
 #include <util/log.h>
@@ -311,7 +312,8 @@ void Button::IPC::setAction(const std::string& type) {
     if (!(_button._info.flags & hidpp20::ReprogControls::TemporaryDivertable))
         throw std::invalid_argument("Non-remappable");
 
-    if (type == GestureAction::interface_name &&
+    if ((type == GestureAction::interface_name ||
+         type == TouchpadGestureAction::interface_name) &&
         !(_button._info.additionalFlags & hidpp20::ReprogControls::RawXY))
         throw std::invalid_argument("No gesture support");
 

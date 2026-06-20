@@ -18,6 +18,7 @@
 
 #include <actions/Action.h>
 #include <actions/KeypressAction.h>
+#include <actions/TouchpadGestureAction.h>
 #include <actions/ToggleSmartShift.h>
 #include <actions/ToggleHiresScroll.h>
 #include <actions/GestureAction.h>
@@ -27,6 +28,7 @@
 #include <actions/ChangeHostAction.h>
 #include <actions/ChangeProfile.h>
 #include <ipc_defs.h>
+#include <type_traits>
 
 using namespace logid;
 using namespace logid::actions;
@@ -64,6 +66,12 @@ namespace logid::actions {
             config = config::CycleDPI();
         } else if (name == KeypressAction::interface_name) {
             config = config::KeypressAction();
+        } else if (name == TouchpadGestureAction::interface_name) {
+            if constexpr (std::is_same_v<T, config::Action>) {
+                config = config::TouchpadGestureAction();
+            } else {
+                throw InvalidAction(name);
+            }
         } else if (name == NullAction::interface_name) {
             config = config::NoAction();
         } else if (name == ChangeHostAction::interface_name) {

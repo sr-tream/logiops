@@ -35,6 +35,8 @@ namespace logid {
 
     class InputDevice;
 
+    class TouchpadDevice;
+
     class DeviceNickname {
     public:
         explicit DeviceNickname(const std::shared_ptr<DeviceManager>& manager);
@@ -100,6 +102,8 @@ namespace logid {
         void reset();
 
         [[nodiscard]] std::shared_ptr<InputDevice> virtualInput() const;
+
+        [[nodiscard]] std::shared_ptr<TouchpadDevice> virtualTouchpad() const;
 
         [[nodiscard]] std::shared_ptr<ipcgull::node> ipcNode() const;
 

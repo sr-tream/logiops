@@ -15,6 +15,7 @@ add_executable(logid
         util/log.cpp
         config/config.cpp
         InputDevice.cpp
+        TouchpadDevice.cpp
         DeviceManager.cpp
         Device.cpp
         Receiver.cpp
@@ -28,6 +29,7 @@ add_executable(logid
         actions/Action.cpp
         actions/NullAction.cpp
         actions/KeypressAction.cpp
+        actions/TouchpadGestureAction.cpp
         actions/ToggleHiresScroll.cpp
         actions/ToggleSmartShift.cpp
         actions/CycleDPI.cpp

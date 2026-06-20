@@ -35,6 +35,8 @@ namespace logid::actions {
 
     class NullAction;
 
+    class TouchpadGestureAction;
+
     class ToggleHiresScroll;
 
     class ToggleSmartShift;
@@ -72,6 +74,19 @@ namespace logid::config {
         KeypressAction() : signed_group<std::string>(
                 "type", "Keypress",
                 {"keys"}, &KeypressAction::keys) {
+        }
+    };
+
+    struct TouchpadGestureAction : public signed_group<std::string> {
+        typedef actions::TouchpadGestureAction action;
+        std::optional<unsigned int> fingers;
+        std::optional<double> scale;
+
+        TouchpadGestureAction() : signed_group<std::string>(
+                "type", "TouchpadGesture",
+                {"fingers", "scale"},
+                &TouchpadGestureAction::fingers,
+                &TouchpadGestureAction::scale) {
         }
     };
 
@@ -236,6 +251,7 @@ namespace logid::config {
             ChangeDPI,
             ChangeHost,
             ChangeProfile,
+            TouchpadGestureAction,
             GestureAction
     > Action;
 
