@@ -91,6 +91,9 @@ void Receiver::addDevice(hidpp::DeviceConnectionEvent event) {
 
         auto dev = _devices.find(event.index);
         if (dev != _devices.end()) {
+            if (event.fromTimeoutCheck)
+                return;
+
             if (event.linkEstablished)
                 dev->second->wakeup();
             else
