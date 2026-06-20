@@ -38,11 +38,13 @@ namespace logid::actions {
 
         [[nodiscard]] uint8_t reprogFlags() const final;
 
-        [[nodiscard]] std::tuple<unsigned int, double, int> getConfig() const;
+        [[nodiscard]] std::tuple<unsigned int, double, bool, int> getConfig() const;
 
         void setFingers(unsigned int fingers);
 
         void setScale(double scale);
+
+        void setInvert(bool invert);
 
         void setClickThreshold(int threshold);
 
@@ -50,6 +52,8 @@ namespace logid::actions {
         [[nodiscard]] unsigned int _fingers() const;
 
         [[nodiscard]] double _scale() const;
+
+        [[nodiscard]] bool _invert() const;
 
         [[nodiscard]] int _clickThreshold() const;
 

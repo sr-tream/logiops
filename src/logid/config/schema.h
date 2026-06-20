@@ -162,14 +162,16 @@ namespace logid::config {
         typedef actions::TouchpadGestureAction action;
         std::optional<unsigned int> fingers;
         std::optional<double> scale;
+        std::optional<bool> invert;
         std::optional<int> click_threshold;
         std::optional<BasicAction> click;
 
         TouchpadGestureAction() : signed_group<std::string>(
                 "type", "TouchpadGesture",
-                {"fingers", "scale", "click_threshold", "click"},
+                {"fingers", "scale", "invert", "click_threshold", "click"},
                 &TouchpadGestureAction::fingers,
                 &TouchpadGestureAction::scale,
+                &TouchpadGestureAction::invert,
                 &TouchpadGestureAction::click_threshold,
                 &TouchpadGestureAction::click) {
         }

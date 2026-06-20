@@ -41,9 +41,10 @@ TouchpadGestureAction::TouchpadGestureAction(
     : Action(device, interface_name, {
             {
                     {"GetConfig", {this, &TouchpadGestureAction::getConfig,
-                                   {"fingers", "scale", "click_threshold"}}},
+                                   {"fingers", "scale", "invert", "click_threshold"}}},
                     {"SetFingers", {this, &TouchpadGestureAction::setFingers, {"fingers"}}},
                     {"SetScale", {this, &TouchpadGestureAction::setScale, {"scale"}}},
+                    {"SetInvert", {this, &TouchpadGestureAction::setInvert, {"invert"}}},
                     {"SetClickThreshold",
                      {this, &TouchpadGestureAction::setClickThreshold, {"threshold"}}}
             },
@@ -92,10 +93,12 @@ void TouchpadGestureAction::move(int16_t x, int16_t y) {
         return;
 
     const auto scale = _scale();
-    const auto scaled_x =
-        static_cast<int>(std::lround(static_cast<double>(x) * scale));
-    const auto scaled_y =
-        static_cast<int>(std::lround(static_cast<double>(y) * scale));
+    auto scaled_x = static_cast<int>(std::lround(static_cast<double>(x) * scale));
+    auto scaled_y = static_cast<int>(std::lround(static_cast<double>(y) * scale));
+    if (_invert()) {
+        scaled_x = -scaled_x;
+        scaled_y = -scaled_y;
+    }
 
     _movement += std::abs(x) + std::abs(y);
 
@@ -119,9 +122,9 @@ uint8_t TouchpadGestureAction::reprogFlags() const {
     return (hidpp20::ReprogControls::TemporaryDiverted | hidpp20::ReprogControls::RawXYDiverted);
 }
 
-std::tuple<unsigned int, double, int> TouchpadGestureAction::getConfig() const {
+std::tuple<unsigned int, double, bool, int> TouchpadGestureAction::getConfig() const {
     std::shared_lock lock(_config_mutex);
-    return {_fingers(), _scale(), _clickThreshold()};
+    return {_fingers(), _scale(), _invert(), _clickThreshold()};
 }
 
 void TouchpadGestureAction::setFingers(unsigned int fingers) {
@@ -136,6 +139,11 @@ void TouchpadGestureAction::setScale(double scale) {
     } else {
         _config.scale = scale;
     }
+}
+
+void TouchpadGestureAction::setInvert(bool invert) {
+    std::unique_lock lock(_config_mutex);
+    _config.invert = invert;
 }
 
 void TouchpadGestureAction::setClickThreshold(int threshold) {
@@ -154,6 +162,10 @@ unsigned int TouchpadGestureAction::_fingers() const {
 
 double TouchpadGestureAction::_scale() const {
     return _config.scale.value_or(default_scale);
+}
+
+bool TouchpadGestureAction::_invert() const {
+    return _config.invert.value_or(false);
 }
 
 int TouchpadGestureAction::_clickThreshold() const {
