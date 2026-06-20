@@ -124,25 +124,24 @@ void Receiver::addDevice(hidpp::DeviceConnectionEvent event) {
 
     } catch (hidpp10::Error& e) {
         if (event.fromTimeoutCheck && e.code() == hidpp10::Error::UnknownDevice) {
-            waitForDevice(event.index);
             throw DeviceNotReady();
         }
         logPrintf(ERROR, "Caught HID++ 1.0 error while trying to initialize %s:%d: %s",
                   _path.c_str(), event.index, e.what());
     } catch (hidpp20::Error& e) {
         if (event.fromTimeoutCheck && e.code() == hidpp20::Error::UnknownDevice) {
-            waitForDevice(event.index);
             throw DeviceNotReady();
         }
         logPrintf(ERROR, "Caught HID++ 2.0 error while trying to initialize "
                          "%s:%d: %s", _path.c_str(), event.index, e.what());
     } catch (TimeoutError& e) {
-        if (!event.fromTimeoutCheck)
+        if (event.fromTimeoutCheck) {
+            throw DeviceNotReady();
+        } else {
             logPrintf(DEBUG, "%s:%d timed out, waiting for input from device to"
                              " initialize.", _path.c_str(), event.index);
-        waitForDevice(event.index);
-        if (event.fromTimeoutCheck)
-            throw DeviceNotReady();
+            waitForDevice(event.index);
+        }
     }
 }
 

@@ -224,22 +224,35 @@ void ReceiverMonitor::_stopPair() {
 }
 
 void ReceiverMonitor::_addHandler(const hidpp::DeviceConnectionEvent& event, int tries) {
+    if (event.fromTimeoutCheck && tries == 0) {
+        const std::lock_guard lock(_wait_mutex);
+        if (_pending_adds.contains(event.index))
+            return;
+        _pending_adds.insert(event.index);
+    }
+
     auto device_path = _receiver->devicePath();
     try {
         addDevice(event);
         const std::lock_guard lock(_wait_mutex);
         _waiters.erase(event.index);
+        _pending_adds.erase(event.index);
     } catch (DeviceNotReady& e) {
-        if (event.fromTimeoutCheck) {
-            logPrintf(DEBUG, "Device %s:%d is not ready; waiting for input.",
-                      device_path.c_str(), event.index);
-            return;
-        }
-
         if (tries == max_tries) {
-            logPrintf(event.fromTimeoutCheck ? DEBUG : WARN,
-                      "Failed to add device %s:%d after %d tries."
-                      "Treating as failure.", device_path.c_str(), event.index, max_tries);
+            if (event.fromTimeoutCheck) {
+                logPrintf(DEBUG, "Device %s:%d is not ready after %d tries;"
+                                 " waiting for input.",
+                          device_path.c_str(), event.index, max_tries);
+                {
+                    const std::lock_guard lock(_wait_mutex);
+                    _pending_adds.erase(event.index);
+                }
+                waitForDevice(event.index);
+            } else {
+                logPrintf(WARN, "Failed to add device %s:%d after %d tries."
+                                "Treating as failure.",
+                          device_path.c_str(), event.index, max_tries);
+            }
         } else {
             /* Do exponential backoff for 2^tries * backoff ms. */
             std::chrono::milliseconds wait((1 << tries) * ready_backoff);
@@ -251,6 +264,10 @@ void ReceiverMonitor::_addHandler(const hidpp::DeviceConnectionEvent& event, int
             }, wait);
         }
     } catch (std::exception& e) {
+        {
+            const std::lock_guard lock(_wait_mutex);
+            _pending_adds.erase(event.index);
+        }
         logPrintf(ERROR, "Failed to add device %d to receiver on %s: %s",
                   event.index, device_path.c_str(), e.what());
     }

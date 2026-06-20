@@ -46,6 +46,7 @@ namespace logid::backend::hidpp20 {
             DFU = 0xd000,
             BATTERY_STATUS = 0x1000,
             BATTERY_VOLTAGE = 0x1001,
+            UNIFIED_BATTERY = 0x1004,
             CHARGING_CONTROL = 0x1010,
             LED_CONTROL = 0x1300,
             GENERIC_TEST = 0x1800,

@@ -16,6 +16,7 @@ add_executable(logid
         config/config.cpp
         InputDevice.cpp
         TouchpadDevice.cpp
+        UhidBatteryDevice.cpp
         DeviceManager.cpp
         Device.cpp
         Receiver.cpp
@@ -26,6 +27,7 @@ add_executable(logid
         features/RemapButton.cpp
         features/DeviceStatus.cpp
         features/ThumbWheel.cpp
+        features/BatteryStatus.cpp
         actions/Action.cpp
         actions/NullAction.cpp
         actions/KeypressAction.cpp
@@ -68,6 +70,7 @@ add_executable(logid
         backend/hidpp20/features/HiresScroll.cpp
         backend/hidpp20/features/ChangeHost.cpp
         backend/hidpp20/features/WirelessDeviceStatus.cpp
+        backend/hidpp20/features/BatteryStatus.cpp
         backend/hidpp20/features/ThumbWheel.cpp
         util/task.cpp
         util/ExceptionHandler.cpp)

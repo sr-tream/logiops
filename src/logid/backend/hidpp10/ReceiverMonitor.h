@@ -22,6 +22,7 @@
 #include <backend/hidpp10/Receiver.h>
 #include <backend/hidpp/defs.h>
 #include <cstdint>
+#include <set>
 #include <string>
 
 namespace logid::backend::hidpp10 {
@@ -105,6 +106,7 @@ namespace logid::backend::hidpp10 {
 
         std::mutex _wait_mutex;
         std::map<hidpp::DeviceIndex, EventHandlerLock<raw::RawDevice>> _waiters;
+        std::set<hidpp::DeviceIndex> _pending_adds;
 
     public:
         template<typename T, typename... Args>

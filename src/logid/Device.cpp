@@ -24,6 +24,7 @@
 #include <features/HiresScroll.h>
 #include <features/DeviceStatus.h>
 #include <features/ThumbWheel.h>
+#include <features/BatteryStatus.h>
 #include <backend/hidpp20/features/Reset.h>
 #include <util/task.h>
 #include <util/log.h>
@@ -155,6 +156,7 @@ void Device::_init() {
     _addFeature<features::RemapButton>("remapbutton");
     _addFeature<features::DeviceStatus>("devicestatus");
     _addFeature<features::ThumbWheel>("thumbwheel");
+    _addFeature<features::BatteryStatus>("batterystatus");
 
     _makeResetMechanism();
     reset();
