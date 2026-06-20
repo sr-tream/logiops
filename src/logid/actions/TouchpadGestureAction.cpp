@@ -29,7 +29,7 @@ using namespace logid::backend;
 const char* TouchpadGestureAction::interface_name = "TouchpadGesture";
 
 namespace {
-    static constexpr double default_scale = 8.0;
+    static constexpr double default_scale = 4.0;
 }
 
 TouchpadGestureAction::TouchpadGestureAction(

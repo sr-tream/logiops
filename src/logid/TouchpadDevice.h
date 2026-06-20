@@ -56,10 +56,11 @@ namespace logid {
         };
 
         static constexpr int _max_contacts = 4;
-        static constexpr int _touchpad_width = 1200;
-        static constexpr int _touchpad_height = 900;
-        static constexpr int _touchpad_margin = 10;
-        static constexpr int _contact_spacing = 80;
+        static constexpr int _touchpad_width = 16000;
+        static constexpr int _touchpad_height = 10000;
+        static constexpr int _touchpad_margin = 100;
+        static constexpr int _touchpad_resolution = 100;
+        static constexpr int _contact_spacing = 800;
 
         void _sendEvent(uint type, uint code, int value);
 

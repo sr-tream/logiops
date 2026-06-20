@@ -55,8 +55,8 @@ TouchpadDevice::TouchpadDevice(const char* name) {
     libevdev_enable_event_type(device, EV_ABS);
     auto slot = abs_info(0, _max_contacts - 1);
     auto tracking_id = abs_info(0, 65535);
-    auto position_x = abs_info(0, _touchpad_width, 40);
-    auto position_y = abs_info(0, _touchpad_height, 40);
+    auto position_x = abs_info(0, _touchpad_width, _touchpad_resolution);
+    auto position_y = abs_info(0, _touchpad_height, _touchpad_resolution);
     libevdev_enable_event_code(device, EV_ABS, ABS_MT_SLOT, &slot);
     libevdev_enable_event_code(device, EV_ABS, ABS_MT_TRACKING_ID, &tracking_id);
     libevdev_enable_event_code(device, EV_ABS, ABS_MT_POSITION_X, &position_x);
