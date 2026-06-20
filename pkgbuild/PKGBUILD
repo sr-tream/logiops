@@ -1,0 +1,35 @@
+# Maintainer: SR_team <me@sr.team>
+
+pkgname=logiops-local-git
+_pkgname=logiops
+epoch=1
+pkgver=0.3.5.r8.gf32c29c
+pkgrel=1
+pkgdesc="An unofficial driver for Logitech HID++>2.0 mice and keyboard"
+arch=('x86_64')
+url="https://github.com/PixlOne/logiops"
+license=('GPL3')
+depends=('libevdev' 'systemd' 'libconfig' 'glib2')
+makedepends=('git' 'cmake' 'gcc')
+conflicts=('logiops' 'logiops-git')
+provides=('logiops')
+source=()
+sha256sums=()
+
+_source_dir() {
+    cd "$startdir/.." && pwd -P
+}
+
+pkgver() {
+    cd "$(_source_dir)"
+    git describe --tags --long | sed 's/^v//' | sed 's/\([^-]*-g\)/r\1/;s/-/./g'
+}
+
+build() {
+    cmake -DCMAKE_INSTALL_PREFIX:PATH=/usr -B "$srcdir/build" -S "$(_source_dir)"
+    cmake --build "$srcdir/build"
+}
+
+package() {
+    DESTDIR="$pkgdir" cmake --install "$srcdir/build"
+}

@@ -22,6 +22,8 @@
 #include <cstdint>
 
 namespace logid::backend::hidpp {
+    static constexpr uint16_t logitechVendorID = 0x046d;
+
     namespace ReportType {
         enum ReportType : uint8_t {
             Short = 0x10,

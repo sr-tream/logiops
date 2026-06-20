@@ -67,6 +67,12 @@ void DeviceManager::addDevice(std::string path) {
     // Check if device is ignored before continuing
     {
         auto raw_dev = raw::RawDevice::make(path, self<DeviceManager>().lock());
+        if (static_cast<uint16_t>(raw_dev->vendorId()) != hidpp::logitechVendorID) {
+            logPrintf(DEBUG, "%s: Non-Logitech device 0x%04x ignored.",
+                      path.c_str(), static_cast<uint16_t>(raw_dev->vendorId()));
+            return;
+        }
+
         if (config()->ignore.has_value() &&
             config()->ignore.value().contains(raw_dev->productId())) {
             logPrintf(DEBUG, "%s: Device 0x%04x ignored.",

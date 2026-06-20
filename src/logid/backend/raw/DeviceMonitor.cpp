@@ -19,10 +19,14 @@
 #include <backend/raw/DeviceMonitor.h>
 #include <backend/raw/IOMonitor.h>
 #include <backend/raw/RawDevice.h>
+#include <backend/hidpp/defs.h>
 #include <backend/hidpp/Device.h>
 #include <backend/Error.h>
 #include <util/task.h>
 #include <util/log.h>
+#include <charconv>
+#include <optional>
+#include <string_view>
 #include <system_error>
 
 extern "C"
@@ -32,6 +36,70 @@ extern "C"
 
 using namespace logid;
 using namespace logid::backend::raw;
+
+namespace {
+    std::optional<unsigned int> parseHex(std::string_view value) {
+        if (value.starts_with("0x") || value.starts_with("0X"))
+            value.remove_prefix(2);
+
+        unsigned int parsed = 0;
+        auto result = std::from_chars(value.data(), value.data() + value.size(),
+                                      parsed, 16);
+        if (result.ec != std::errc() || result.ptr != value.data() + value.size())
+            return std::nullopt;
+
+        return parsed;
+    }
+
+    std::optional<unsigned int> vendorIdFromHidId(const char* hid_id_cstr) {
+        if (!hid_id_cstr)
+            return std::nullopt;
+
+        std::string_view hid_id{hid_id_cstr};
+        auto bus_end = hid_id.find(':');
+        if (bus_end == std::string_view::npos)
+            return std::nullopt;
+
+        auto vendor_end = hid_id.find(':', bus_end + 1);
+        if (vendor_end == std::string_view::npos)
+            return std::nullopt;
+
+        return parseHex(hid_id.substr(bus_end + 1, vendor_end - bus_end - 1));
+    }
+
+    std::optional<unsigned int> vendorIdFromHexString(const char* value) {
+        if (!value)
+            return std::nullopt;
+
+        return parseHex(std::string_view{value});
+    }
+
+    std::optional<unsigned int> vendorIdFromUdevDevice(struct udev_device* device) {
+        for (auto current = device; current; current = udev_device_get_parent(current)) {
+            if (auto vendor = vendorIdFromHidId(
+                    udev_device_get_property_value(current, "HID_ID"))) {
+                return vendor;
+            }
+
+            if (auto vendor = vendorIdFromHexString(
+                    udev_device_get_property_value(current, "ID_VENDOR_ID"))) {
+                return vendor;
+            }
+
+            if (auto vendor = vendorIdFromHexString(
+                    udev_device_get_sysattr_value(current, "idVendor"))) {
+                return vendor;
+            }
+        }
+
+        return std::nullopt;
+    }
+
+    bool isLogitechUdevDevice(struct udev_device* device) {
+        auto vendor = vendorIdFromUdevDevice(device);
+        return vendor && *vendor == logid::backend::hidpp::logitechVendorID;
+    }
+}
 
 DeviceMonitor::DeviceMonitor() : _io_monitor(std::make_shared<IOMonitor>()),
                                  _ready(false) {
@@ -92,14 +160,28 @@ void DeviceMonitor::ready() {
             [self_weak = _self]() {
                 if (auto self = self_weak.lock()) {
                     struct udev_device* device = udev_monitor_receive_device(self->_udev_monitor);
-                    std::string action = udev_device_get_action(device);
-                    std::string dev_node = udev_device_get_devnode(device);
+                    if (!device)
+                        return;
 
-                    if (action == "add")
+                    const char* action_cstr = udev_device_get_action(device);
+                    const char* dev_node_cstr = udev_device_get_devnode(device);
+
+                    if (!action_cstr || !dev_node_cstr) {
+                        udev_device_unref(device);
+                        return;
+                    }
+
+                    std::string action = action_cstr;
+                    std::string dev_node = dev_node_cstr;
+
+                    if (action == "add" && isLogitechUdevDevice(device))
                         run_task([self_weak, dev_node]() {
                             if (auto self = self_weak.lock())
                                 self->_addHandler(dev_node);
                         });
+                    else if (action == "add")
+                        logPrintf(DEBUG, "Non-Logitech device %s ignored",
+                                  dev_node.c_str());
                     else if (action == "remove")
                         run_task([self_weak, dev_node]() {
                             if (auto self = self_weak.lock())
@@ -139,11 +221,14 @@ void DeviceMonitor::enumerate() {
         struct udev_device* device = udev_device_new_from_syspath(_udev_context, name);
         if (device) {
             const char* dev_node_cstr = udev_device_get_devnode(device);
-            if (dev_node_cstr) {
+            if (dev_node_cstr && isLogitechUdevDevice(device)) {
                 const std::string dev_node {dev_node_cstr};
                 udev_device_unref(device);
 
                 _addHandler(dev_node);
+            } else if (dev_node_cstr) {
+                logPrintf(DEBUG, "Non-Logitech device %s ignored", dev_node_cstr);
+                udev_device_unref(device);
             } else {
                 udev_device_unref(device);
             }
