@@ -1,0 +1,15 @@
+_restart_logid_if_running() {
+    if command -v systemctl >/dev/null 2>&1 &&
+            systemctl is-active --quiet logid.service; then
+        systemctl daemon-reload >/dev/null 2>&1 || true
+        systemctl restart logid.service || true
+    fi
+}
+
+post_install() {
+    _restart_logid_if_running
+}
+
+post_upgrade() {
+    _restart_logid_if_running
+}

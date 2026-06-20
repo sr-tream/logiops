@@ -80,6 +80,8 @@ namespace logid::backend::hidpp10 {
 
         void _removeHandler(hidpp::DeviceIndex index);
 
+        void _enumeratePairedDevices();
+
         std::shared_ptr<Receiver> _receiver;
 
         enum PairState {

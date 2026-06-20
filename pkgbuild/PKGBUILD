@@ -3,7 +3,7 @@
 pkgname=logiops-local-git
 _pkgname=logiops
 epoch=1
-pkgver=0.3.5.r9.ga67b3e1
+pkgver=0.3.5.r10.g44df539
 pkgrel=1
 pkgdesc="An unofficial driver for Logitech HID++>2.0 mice and keyboard"
 arch=('x86_64')
@@ -13,6 +13,7 @@ depends=('libevdev' 'systemd' 'libconfig' 'glib2')
 makedepends=('git' 'cmake' 'gcc')
 conflicts=('logiops' 'logiops-git')
 provides=('logiops')
+install='logiops-local-git.install'
 source=()
 sha256sums=()
 

@@ -78,6 +78,12 @@ uint8_t Receiver::getConnectionState(hidpp::DeviceIndex index) {
     return response[0];
 }
 
+uint8_t Receiver::getDeviceCount() {
+    auto response = getRegister(ConnectionState, {}, hidpp::ReportType::Short);
+
+    return response[1];
+}
+
 void Receiver::startPairing(uint8_t timeout) {
     std::vector<uint8_t> request(3);
 

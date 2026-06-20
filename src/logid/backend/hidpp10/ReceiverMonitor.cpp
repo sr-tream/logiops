@@ -155,6 +155,13 @@ void ReceiverMonitor::_ready() {
 
 void ReceiverMonitor::enumerate() {
     _receiver->enumerate();
+    if (_receiver->rawDevice()->busType() != logid::backend::raw::RawDevice::USB)
+        return;
+
+    run_task_after([self_weak = _self]() {
+        if (auto self = self_weak.lock())
+            self->_enumeratePairedDevices();
+    }, std::chrono::milliseconds(ready_backoff));
 }
 
 void ReceiverMonitor::waitForDevice(hidpp::DeviceIndex index) {
@@ -223,6 +230,12 @@ void ReceiverMonitor::_addHandler(const hidpp::DeviceConnectionEvent& event, int
         const std::lock_guard lock(_wait_mutex);
         _waiters.erase(event.index);
     } catch (DeviceNotReady& e) {
+        if (event.fromTimeoutCheck) {
+            logPrintf(DEBUG, "Device %s:%d is not ready; waiting for input.",
+                      device_path.c_str(), event.index);
+            return;
+        }
+
         if (tries == max_tries) {
             logPrintf(event.fromTimeoutCheck ? DEBUG : WARN,
                       "Failed to add device %s:%d after %d tries."
@@ -249,5 +262,59 @@ void ReceiverMonitor::_removeHandler(hidpp::DeviceIndex index) {
     } catch (std::exception& e) {
         logPrintf(ERROR, "Failed to remove device %d from receiver on %s: %s",
                   index, _receiver->devicePath().c_str(), e.what());
+    }
+}
+
+void ReceiverMonitor::_enumeratePairedDevices() {
+    uint8_t paired_devices = 0;
+    try {
+        paired_devices = _receiver->getDeviceCount();
+    } catch (hidpp10::Error& e) {
+        logPrintf(DEBUG, "Failed to get device count on %s: %s",
+                  _receiver->devicePath().c_str(), e.what());
+    } catch (TimeoutError& e) {
+        logPrintf(DEBUG, "Timed out getting device count on %s",
+                  _receiver->devicePath().c_str());
+    }
+
+    uint8_t found_devices = 0;
+    for (uint8_t i = hidpp::WirelessDevice1; i <= hidpp::WirelessDevice6; i++) {
+        if (paired_devices && found_devices >= paired_devices)
+            break;
+
+        auto index = static_cast<hidpp::DeviceIndex>(i);
+
+        try {
+            auto pair_info = _receiver->getPairingInfo(index);
+
+            hidpp::DeviceConnectionEvent event{};
+            event.index = index;
+            event.pid = pair_info.pid;
+            event.deviceType = pair_info.deviceType;
+            event.linkEstablished = true;
+            event.withPayload = false;
+            event.fromTimeoutCheck = true;
+
+            _addHandler(event);
+            found_devices++;
+        } catch (hidpp10::Error& e) {
+            switch (e.code()) {
+                case hidpp10::Error::UnknownDevice:
+                case hidpp10::Error::InvalidAddress:
+                case hidpp10::Error::InvalidValue:
+                case hidpp10::Error::InvalidParameterValue:
+                    break;
+                default:
+                    logPrintf(DEBUG, "Failed to enumerate receiver slot %d on %s: %s",
+                              index, _receiver->devicePath().c_str(), e.what());
+                    break;
+            }
+        } catch (TimeoutError& e) {
+            logPrintf(DEBUG, "Timed out enumerating receiver slot %d on %s",
+                      index, _receiver->devicePath().c_str());
+        } catch (std::exception& e) {
+            logPrintf(DEBUG, "Failed to enumerate receiver slot %d on %s: %s",
+                      index, _receiver->devicePath().c_str(), e.what());
+        }
     }
 }

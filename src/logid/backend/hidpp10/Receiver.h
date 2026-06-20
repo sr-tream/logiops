@@ -130,6 +130,8 @@ namespace logid::backend::hidpp10 {
 
         uint8_t getConnectionState(hidpp::DeviceIndex index);
 
+        uint8_t getDeviceCount();
+
         void startPairing(uint8_t timeout = 0);
 
         void startBoltPairing(const DeviceDiscoveryEvent& discovery);
