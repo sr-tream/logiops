@@ -3,7 +3,7 @@
 pkgname=logiops-local-git
 _pkgname=logiops
 epoch=1
-pkgver=0.3.5.r13.g053cb5b
+pkgver=0.3.5.r17.g8eb4a61
 pkgrel=1
 pkgdesc="An unofficial driver for Logitech HID++>2.0 mice and keyboard"
 arch=('x86_64')
@@ -33,4 +33,7 @@ build() {
 
 package() {
     DESTDIR="$pkgdir" cmake --install "$srcdir/build"
+
+    install -dm755 "$pkgdir/usr/lib/modules-load.d"
+    printf 'uhid\n' > "$pkgdir/usr/lib/modules-load.d/logiops.conf"
 }

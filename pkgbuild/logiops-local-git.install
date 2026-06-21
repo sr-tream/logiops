@@ -1,3 +1,9 @@
+_load_uhid_if_available() {
+    if command -v modprobe >/dev/null 2>&1; then
+        modprobe uhid >/dev/null 2>&1 || true
+    fi
+}
+
 _restart_logid_if_running() {
     if command -v systemctl >/dev/null 2>&1 &&
             systemctl is-active --quiet logid.service; then
@@ -7,9 +13,11 @@ _restart_logid_if_running() {
 }
 
 post_install() {
+    _load_uhid_if_available
     _restart_logid_if_running
 }
 
 post_upgrade() {
+    _load_uhid_if_available
     _restart_logid_if_running
 }
