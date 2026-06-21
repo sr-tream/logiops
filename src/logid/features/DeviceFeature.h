@@ -63,6 +63,10 @@ namespace logid::features {
 
         virtual void setProfile(config::Profile& profile) = 0;
 
+        virtual void onSleep() {}
+
+        virtual void onWakeup() {}
+
         virtual ~DeviceFeature() = default;
 
         DeviceFeature(const DeviceFeature&) = delete;

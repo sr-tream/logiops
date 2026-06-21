@@ -182,23 +182,38 @@ hidpp::DeviceType Device::deviceType() const {
 }
 
 void Device::sleep() {
-    std::lock_guard<std::mutex> lock(_state_lock);
-    if (_awake) {
+    {
+        std::lock_guard<std::mutex> lock(_state_lock);
+        if (!_awake)
+            return;
+
         logPrintf(INFO, "%s:%d fell asleep.", _path.c_str(), _index);
         _awake = false;
-        _ipc_interface->notifyStatus();
     }
+
+    for (auto& feature: _features)
+        feature.second->onSleep();
+
+    _ipc_interface->notifyStatus();
 }
 
 void Device::wakeup() {
-    std::lock_guard<std::mutex> lock(_state_lock);
+    for (auto& feature: _features)
+        feature.second->onWakeup();
 
     reconfigure();
 
-    if (!_awake) {
-        _awake = true;
-        _ipc_interface->notifyStatus();
+    bool notify = false;
+    {
+        std::lock_guard<std::mutex> lock(_state_lock);
+        if (!_awake) {
+            _awake = true;
+            notify = true;
+        }
     }
+
+    if (notify)
+        _ipc_interface->notifyStatus();
 
     logPrintf(INFO, "%s:%d woke up.", _path.c_str(), _index);
 }

@@ -99,6 +99,8 @@ namespace logid::features {
 
         void setProfile(config::Profile& profile) final;
 
+        void onSleep() final;
+
     protected:
         explicit RemapButton(Device* dev);
 

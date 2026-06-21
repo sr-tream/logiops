@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <backend/Error.h>
+#include <chrono>
 #include <iomanip>
 #include <sstream>
 #include <util/log.h>
@@ -55,20 +56,6 @@ uint8_t inferredCapacity(hidpp20::BatteryStatus::State state) {
 
 BatteryStatus::BatteryStatus(Device *dev) : DeviceFeature(dev) {
   try {
-    auto feature = std::make_shared<hidpp20::BatteryStatus>(&dev->hidpp20());
-    _readers.push_back({
-        "BATTERY_STATUS",
-        feature,
-        [feature]() { return feature->getBattery(); },
-        [](const hidpp::Report &report) {
-          return hidpp20::BatteryStatus::batteryStatusEvent(report);
-        },
-        hidpp20::BatteryStatus::GetBatteryLevelStatus,
-    });
-  } catch (hidpp20::UnsupportedFeature &e) {
-  }
-
-  try {
     auto feature = std::make_shared<hidpp20::UnifiedBattery>(&dev->hidpp20());
     _readers.push_back({
         "UNIFIED_BATTERY",
@@ -78,6 +65,22 @@ BatteryStatus::BatteryStatus(Device *dev) : DeviceFeature(dev) {
           return hidpp20::UnifiedBattery::batteryStatusEvent(report);
         },
         hidpp20::UnifiedBattery::GetBatteryCapability,
+        30,
+    });
+  } catch (hidpp20::UnsupportedFeature &e) {
+  }
+
+  try {
+    auto feature = std::make_shared<hidpp20::BatteryStatus>(&dev->hidpp20());
+    _readers.push_back({
+        "BATTERY_STATUS",
+        feature,
+        [feature]() { return feature->getBattery(); },
+        [](const hidpp::Report &report) {
+          return hidpp20::BatteryStatus::batteryStatusEvent(report);
+        },
+        hidpp20::BatteryStatus::GetBatteryLevelStatus,
+        20,
     });
   } catch (hidpp20::UnsupportedFeature &e) {
   }
@@ -92,6 +95,7 @@ BatteryStatus::BatteryStatus(Device *dev) : DeviceFeature(dev) {
           return hidpp20::BatteryVoltage::batteryStatusEvent(report);
         },
         hidpp20::BatteryVoltage::GetBatteryVoltage,
+        10,
     });
   } catch (hidpp20::UnsupportedFeature &e) {
   }
@@ -108,19 +112,26 @@ void BatteryStatus::configure() {
 void BatteryStatus::_readAndPublish(const char *context) {
   std::optional<HidppBatteryStatus> selected;
   std::string selected_source;
+  std::optional<uint8_t> selected_capacity;
+  int selected_priority = -1;
+  bool any_charging = false;
 
   for (auto &reader : _readers) {
     try {
       auto status = reader.read();
-      if (!_capacity(status))
+      auto capacity = _capacity(status);
+      if (!capacity)
         continue;
 
-      if (selected && !status.level && selected->level)
-        status.level = selected->level;
+      any_charging = any_charging || _charging(status);
 
-      if (!selected || (!_charging(*selected) && _charging(status))) {
+      if (!selected || reader.priority > selected_priority ||
+          (reader.priority == selected_priority &&
+           *capacity > selected_capacity.value_or(0))) {
         selected = status;
         selected_source = reader.source;
+        selected_capacity = capacity;
+        selected_priority = reader.priority;
       }
     } catch (std::exception &e) {
       logPrintf(DEBUG, "Failed to read battery status for %s: %s",
@@ -128,8 +139,14 @@ void BatteryStatus::_readAndPublish(const char *context) {
     }
   }
 
-  if (selected)
+  if (selected) {
+    if (any_charging && selected->state != hidpp20::BatteryStatus::State::Full &&
+        !_charging(*selected)) {
+      selected->state = hidpp20::BatteryStatus::State::Recharging;
+    }
+
     _publish(*selected, std::string(context) + "/" + selected_source);
+  }
 }
 
 void BatteryStatus::_scheduleStartupRefreshes() {
@@ -167,12 +184,36 @@ void BatteryStatus::listen() {
                         report.function() == candidate.eventFunction;
                });
            if (reader != readers.end())
-             self->_publish(reader->parseEvent(report), reader->source);
+             self->_readAndPublish(reader->source);
          }
        }});
 }
 
 void BatteryStatus::setProfile(config::Profile &) {}
+
+void BatteryStatus::onSleep() {
+  auto generation = ++_sleep_generation;
+  auto self_weak = self<BatteryStatus>();
+  run_task_after(
+      [self_weak, generation]() {
+        if (auto self = self_weak.lock()) {
+          if (self->_sleep_generation.load() == generation)
+            self->_withdrawUhidBattery("sleep");
+        }
+      },
+      std::chrono::seconds(15));
+}
+
+void BatteryStatus::onWakeup() { ++_sleep_generation; }
+
+void BatteryStatus::_withdrawUhidBattery(const char *reason) {
+  if (!_uhid_battery)
+    return;
+
+  logPrintf(DEBUG, "Withdrawing UHID battery for %s after %s",
+            _device->name().c_str(), reason);
+  _uhid_battery.reset();
+}
 
 void BatteryStatus::_publish(const HidppBatteryStatus &status,
                              const std::string &source) {

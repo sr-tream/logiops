@@ -22,6 +22,7 @@
 #include <UhidBatteryDevice.h>
 #include <backend/hidpp20/features/BatteryStatus.h>
 #include <features/DeviceFeature.h>
+#include <atomic>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -37,6 +38,10 @@ public:
 
   void setProfile(config::Profile &profile) final;
 
+  void onSleep() final;
+
+  void onWakeup() final;
+
 protected:
   explicit BatteryStatus(Device *dev);
 
@@ -46,6 +51,8 @@ private:
   void _readAndPublish(const char *context);
 
   void _scheduleStartupRefreshes();
+
+  void _withdrawUhidBattery(const char *reason);
 
   void _publish(const HidppBatteryStatus &status, const std::string &source);
 
@@ -65,11 +72,13 @@ private:
     std::function<HidppBatteryStatus(const backend::hidpp::Report &)>
         parseEvent;
     uint8_t eventFunction;
+    int priority;
   };
 
   EventHandlerLock<backend::hidpp::Device> _ev_handler;
   std::vector<Reader> _readers;
   std::unique_ptr<UhidBatteryDevice> _uhid_battery;
+  std::atomic_uint64_t _sleep_generation{0};
   bool _uhid_error_logged{false};
 };
 } // namespace logid::features

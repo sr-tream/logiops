@@ -175,6 +175,18 @@ void RemapButton::setProfile(config::Profile& profile) {
         button.second->setProfile(config[button.first]);
 }
 
+void RemapButton::onSleep() {
+    std::lock_guard<std::mutex> lock(_button_lock);
+
+    for (auto& cid: _pressed_buttons) {
+        auto action = _buttons.find(cid);
+        if (action != _buttons.end())
+            action->second->release();
+    }
+
+    _pressed_buttons.clear();
+}
+
 void RemapButton::_buttonEvent(const std::set<uint16_t>& new_state) {
     // Ensure I/O doesn't occur while updating button state
     std::lock_guard<std::mutex> lock(_button_lock);

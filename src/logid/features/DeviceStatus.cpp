@@ -22,14 +22,6 @@ using namespace logid::features;
 using namespace logid::backend;
 
 DeviceStatus::DeviceStatus(logid::Device* dev) : DeviceFeature(dev) {
-    /* This feature is redundant on receivers since the receiver
-     * handles wakeup/sleep events. If the device is connected on a
-     * receiver, pretend this feature is unsupported.
-     */
-    if (dev->hidpp20().deviceIndex() >= hidpp::WirelessDevice1 &&
-        dev->hidpp20().deviceIndex() <= hidpp::WirelessDevice6)
-        throw UnsupportedFeature();
-
     try {
         _wireless_device_status = std::make_shared<hidpp20::WirelessDeviceStatus>(&dev->hidpp20());
     } catch (hidpp20::UnsupportedFeature& e) {
@@ -53,7 +45,7 @@ void DeviceStatus::listen() {
                  [self_weak = self<DeviceStatus>()](
                          const hidpp::Report& report) {
                      auto event = hidpp20::WirelessDeviceStatus::statusBroadcastEvent(report);
-                     if (event.reconfNeeded)
+                     if (event.reconnection || event.reconfNeeded)
                          run_task_after([self_weak]() {
                              if (auto self = self_weak.lock())
                                  self->_device->wakeup();
