@@ -28,8 +28,11 @@
 namespace logid {
 class UhidBatteryDevice {
 public:
+  enum class DeviceKind { Generic, Keyboard, Mouse };
+
   UhidBatteryDevice(std::string name, std::string uniq, uint16_t product_id,
-                    uint8_t capacity, bool charging);
+                    uint8_t capacity, bool charging,
+                    DeviceKind kind = DeviceKind::Generic);
 
   ~UhidBatteryDevice();
 
@@ -48,7 +51,7 @@ private:
 
   void _sendBatteryInput();
 
-  void _sendConsumerIdleInput();
+  void _sendIdentityIdleInput();
 
   void _sendGetReportReply(uint32_t id);
 
@@ -66,6 +69,7 @@ private:
   const std::string _name;
   const std::string _uniq;
   const uint16_t _product_id;
+  const DeviceKind _kind;
 
   int _fd{-1};
   std::atomic_bool _running{false};

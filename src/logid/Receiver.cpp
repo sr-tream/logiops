@@ -117,7 +117,7 @@ void Receiver::addDevice(hidpp::DeviceConnectionEvent event) {
 
         hidpp_device.reset();
 
-        auto device = Device::make(this, event.index, manager);
+        auto device = Device::make(this, event.index, manager, event.deviceType);
         std::lock_guard<std::mutex> manager_lock(manager->mutex());
         _devices.emplace(event.index, device);
         manager->addExternalDevice(device);

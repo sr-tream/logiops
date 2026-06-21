@@ -54,6 +54,8 @@ private:
 
   [[nodiscard]] bool _charging(const HidppBatteryStatus &status) const;
 
+  [[nodiscard]] UhidBatteryDevice::DeviceKind _deviceKind() const;
+
   [[nodiscard]] std::string _uniqueId() const;
 
   struct Reader {

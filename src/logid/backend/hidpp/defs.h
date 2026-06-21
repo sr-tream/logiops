@@ -42,6 +42,17 @@ namespace logid::backend::hidpp {
         WirelessDevice6 = 6,
     };
 
+    enum DeviceType : uint8_t {
+        DeviceUnknown = 0x00,
+        DeviceKeyboard = 0x01,
+        DeviceMouse = 0x02,
+        DeviceNumpad = 0x03,
+        DevicePresenter = 0x04,
+        /* 0x05-0x07 is reserved */
+        DeviceTrackball = 0x08,
+        DeviceTouchpad = 0x09
+    };
+
     static constexpr uint8_t softwareID = 2;
     /* For sending reports with no response, use a different SW ID */
     static constexpr uint8_t noAckSoftwareID = 3;

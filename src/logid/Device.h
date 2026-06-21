@@ -64,6 +64,8 @@ namespace logid {
 
         uint16_t pid();
 
+        [[nodiscard]] backend::hidpp::DeviceType deviceType() const;
+
         [[nodiscard]] config::Profile& activeProfile();
 
         [[nodiscard]] std::vector<std::string> getProfiles() const;
@@ -91,7 +93,8 @@ namespace logid {
         static std::shared_ptr<Device> make(
                 Receiver* receiver,
                 backend::hidpp::DeviceIndex index,
-                std::shared_ptr<DeviceManager> manager);
+                std::shared_ptr<DeviceManager> manager,
+                backend::hidpp::DeviceType device_type = backend::hidpp::DeviceUnknown);
 
         void wakeup();
 
@@ -134,7 +137,8 @@ namespace logid {
                const std::shared_ptr<DeviceManager>& manager);
 
         Device(Receiver* receiver, backend::hidpp::DeviceIndex index,
-               const std::shared_ptr<DeviceManager>& manager);
+               const std::shared_ptr<DeviceManager>& manager,
+               backend::hidpp::DeviceType device_type = backend::hidpp::DeviceUnknown);
 
         static config::Device& _getConfig(
                 const std::shared_ptr<DeviceManager>& manager,
@@ -154,6 +158,7 @@ namespace logid {
         std::shared_ptr<backend::hidpp20::Device> _hidpp20;
         std::string _path;
         backend::hidpp::DeviceIndex _index;
+        backend::hidpp::DeviceType _device_type = backend::hidpp::DeviceUnknown;
         std::map<std::string, std::shared_ptr<features::DeviceFeature>> _features;
 
         config::Device& _config;

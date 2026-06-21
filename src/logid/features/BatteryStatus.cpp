@@ -191,7 +191,7 @@ void BatteryStatus::_publish(const HidppBatteryStatus &status,
     try {
       _uhid_battery = std::make_unique<UhidBatteryDevice>(
           _device->name(), _uniqueId(), _device->pid(), *capacity,
-          _charging(status));
+          _charging(status), _deviceKind());
       logPrintf(INFO, "Publishing battery for %s through UHID at %u%% (%s)",
                 _device->name().c_str(), *capacity,
                 _charging(status) ? "charging" : "discharging");
@@ -229,6 +229,25 @@ bool BatteryStatus::_charging(const HidppBatteryStatus &status) const {
     return true;
   default:
     return false;
+  }
+}
+
+logid::UhidBatteryDevice::DeviceKind BatteryStatus::_deviceKind() const {
+  using DeviceKind = UhidBatteryDevice::DeviceKind;
+  using namespace backend::hidpp;
+
+  switch (_device->deviceType()) {
+  case DeviceKeyboard:
+  case DeviceNumpad:
+  case DevicePresenter:
+    return DeviceKind::Keyboard;
+  case DeviceMouse:
+  case DeviceTrackball:
+  case DeviceTouchpad:
+    return DeviceKind::Mouse;
+  case DeviceUnknown:
+  default:
+    return DeviceKind::Generic;
   }
 }
 

@@ -27,18 +27,19 @@
 #include <stdexcept>
 #include <unistd.h>
 #include <utility>
+#include <vector>
 
 using namespace logid;
 
 namespace {
 constexpr uint8_t BatteryReportId = 1;
-constexpr uint8_t ConsumerReportId = 2;
+constexpr uint8_t IdentityReportId = 2;
 
-constexpr uint8_t BatteryReportDescriptor[] = {
+constexpr uint8_t GenericInputDescriptor[] = {
     0x05, 0x0c,             // Usage Page (Consumer)
     0x09, 0x01,             // Usage (Consumer Control)
     0xa1, 0x01,             // Collection (Application)
-    0x85, ConsumerReportId, //   Report ID
+    0x85, IdentityReportId, //   Report ID
     0x15, 0x00,             //   Logical Minimum (0)
     0x25, 0x01,             //   Logical Maximum (1)
     0x75, 0x01,             //   Report Size (1)
@@ -49,7 +50,67 @@ constexpr uint8_t BatteryReportDescriptor[] = {
     0x95, 0x01,             //   Report Count (1)
     0x81, 0x03,             //   Input (Constant, Variable, Absolute)
     0xc0,                   // End Collection
+};
 
+constexpr uint8_t KeyboardInputDescriptor[] = {
+    0x05, 0x01,             // Usage Page (Generic Desktop)
+    0x09, 0x06,             // Usage (Keyboard)
+    0xa1, 0x01,             // Collection (Application)
+    0x85, IdentityReportId, //   Report ID
+    0x05, 0x07,             //   Usage Page (Keyboard/Keypad)
+    0x19, 0xe0,             //   Usage Minimum (Keyboard LeftControl)
+    0x29, 0xe7,             //   Usage Maximum (Keyboard Right GUI)
+    0x15, 0x00,             //   Logical Minimum (0)
+    0x25, 0x01,             //   Logical Maximum (1)
+    0x75, 0x01,             //   Report Size (1)
+    0x95, 0x08,             //   Report Count (8)
+    0x81, 0x02,             //   Input (Data, Variable, Absolute)
+    0x95, 0x01,             //   Report Count (1)
+    0x75, 0x08,             //   Report Size (8)
+    0x81, 0x03,             //   Input (Constant, Variable, Absolute)
+    0x95, 0x06,             //   Report Count (6)
+    0x75, 0x08,             //   Report Size (8)
+    0x15, 0x00,             //   Logical Minimum (0)
+    0x25, 0x65,             //   Logical Maximum (101)
+    0x05, 0x07,             //   Usage Page (Keyboard/Keypad)
+    0x19, 0x00,             //   Usage Minimum (Reserved)
+    0x29, 0x65,             //   Usage Maximum (Keyboard Application)
+    0x81, 0x00,             //   Input (Data, Array, Absolute)
+    0xc0,                   // End Collection
+};
+
+constexpr uint8_t MouseInputDescriptor[] = {
+    0x05, 0x01,             // Usage Page (Generic Desktop)
+    0x09, 0x02,             // Usage (Mouse)
+    0xa1, 0x01,             // Collection (Application)
+    0x85, IdentityReportId, //   Report ID
+    0x09, 0x01,             //   Usage (Pointer)
+    0xa1, 0x00,             //   Collection (Physical)
+    0x05, 0x09,             //     Usage Page (Button)
+    0x19, 0x01,             //     Usage Minimum (Button 1)
+    0x29, 0x03,             //     Usage Maximum (Button 3)
+    0x15, 0x00,             //     Logical Minimum (0)
+    0x25, 0x01,             //     Logical Maximum (1)
+    0x75, 0x01,             //     Report Size (1)
+    0x95, 0x03,             //     Report Count (3)
+    0x81, 0x02,             //     Input (Data, Variable, Absolute)
+    0x75, 0x05,             //     Report Size (5)
+    0x95, 0x01,             //     Report Count (1)
+    0x81, 0x03,             //     Input (Constant, Variable, Absolute)
+    0x05, 0x01,             //     Usage Page (Generic Desktop)
+    0x09, 0x30,             //     Usage (X)
+    0x09, 0x31,             //     Usage (Y)
+    0x09, 0x38,             //     Usage (Wheel)
+    0x15, 0x81,             //     Logical Minimum (-127)
+    0x25, 0x7f,             //     Logical Maximum (127)
+    0x75, 0x08,             //     Report Size (8)
+    0x95, 0x03,             //     Report Count (3)
+    0x81, 0x06,             //     Input (Data, Variable, Relative)
+    0xc0,                   //   End Collection
+    0xc0,                   // End Collection
+};
+
+constexpr uint8_t BatteryReportDescriptor[] = {
     0x05, 0x06,            // Usage Page (Generic Device Controls)
     0x09, 0x20,            // Usage (Battery Strength)
     0xa1, 0x01,            // Collection (Application)
@@ -84,13 +145,36 @@ void copyString(uint8_t *dest, size_t size, const std::string &source) {
 
   std::snprintf(reinterpret_cast<char *>(dest), size, "%s", source.c_str());
 }
+
+void append(std::vector<uint8_t> &out, const uint8_t *begin, size_t size) {
+  out.insert(out.end(), begin, begin + size);
+}
+
+std::vector<uint8_t> reportDescriptor(UhidBatteryDevice::DeviceKind kind) {
+  std::vector<uint8_t> descriptor;
+  switch (kind) {
+  case UhidBatteryDevice::DeviceKind::Keyboard:
+    append(descriptor, KeyboardInputDescriptor,
+           sizeof(KeyboardInputDescriptor));
+    break;
+  case UhidBatteryDevice::DeviceKind::Mouse:
+    append(descriptor, MouseInputDescriptor, sizeof(MouseInputDescriptor));
+    break;
+  case UhidBatteryDevice::DeviceKind::Generic:
+    append(descriptor, GenericInputDescriptor, sizeof(GenericInputDescriptor));
+    break;
+  }
+  append(descriptor, BatteryReportDescriptor, sizeof(BatteryReportDescriptor));
+  return descriptor;
+}
 } // namespace
 
 UhidBatteryDevice::UhidBatteryDevice(std::string name, std::string uniq,
                                      uint16_t product_id, uint8_t capacity,
-                                     bool charging)
+                                     bool charging, DeviceKind kind)
     : _name(std::move(name)), _uniq(std::move(uniq)), _product_id(product_id),
-      _battery_capacity(std::min<uint8_t>(capacity, 100)), _charging(charging) {
+      _kind(kind), _battery_capacity(std::min<uint8_t>(capacity, 100)),
+      _charging(charging) {
   _fd = open("/dev/uhid", O_RDWR | O_CLOEXEC);
   if (_fd < 0)
     throw std::runtime_error(std::string("open(/dev/uhid): ") +
@@ -157,9 +241,12 @@ bool UhidBatteryDevice::_sendCreate() {
              "logiops/uhid-battery");
   copyString(event.u.create2.uniq, sizeof(event.u.create2.uniq), _uniq);
 
-  event.u.create2.rd_size = sizeof(BatteryReportDescriptor);
-  std::memcpy(event.u.create2.rd_data, BatteryReportDescriptor,
-              sizeof(BatteryReportDescriptor));
+  auto descriptor = reportDescriptor(_kind);
+  if (descriptor.size() > sizeof(event.u.create2.rd_data))
+    return false;
+
+  event.u.create2.rd_size = descriptor.size();
+  std::memcpy(event.u.create2.rd_data, descriptor.data(), descriptor.size());
 
   event.u.create2.bus = BUS_BLUETOOTH;
   event.u.create2.vendor = 0x046d;
@@ -188,12 +275,23 @@ void UhidBatteryDevice::_sendBatteryInput() {
   _writeEvent(event);
 }
 
-void UhidBatteryDevice::_sendConsumerIdleInput() {
+void UhidBatteryDevice::_sendIdentityIdleInput() {
   uhid_event event{};
   event.type = UHID_INPUT2;
-  event.u.input2.size = 2;
-  event.u.input2.data[0] = ConsumerReportId;
-  event.u.input2.data[1] = 0;
+  event.u.input2.data[0] = IdentityReportId;
+
+  switch (_kind) {
+  case DeviceKind::Keyboard:
+    event.u.input2.size = 9;
+    break;
+  case DeviceKind::Mouse:
+    event.u.input2.size = 5;
+    break;
+  case DeviceKind::Generic:
+    event.u.input2.size = 2;
+    break;
+  }
+
   _writeEvent(event);
 }
 
@@ -249,7 +347,7 @@ void UhidBatteryDevice::_eventLoop() {
     switch (event.type) {
     case UHID_START:
     case UHID_OPEN:
-      _sendConsumerIdleInput();
+      _sendIdentityIdleInput();
       _sendBatteryInput();
       startup_resends = 12;
       next_startup_resend = clock::now() + std::chrono::milliseconds(250);

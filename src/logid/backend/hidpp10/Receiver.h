@@ -23,17 +23,6 @@
 #include <backend/hidpp10/Device.h>
 
 namespace logid::backend::hidpp {
-    enum DeviceType : uint8_t {
-        DeviceUnknown = 0x00,
-        DeviceKeyboard = 0x01,
-        DeviceMouse = 0x02,
-        DeviceNumpad = 0x03,
-        DevicePresenter = 0x04,
-        /* 0x05-0x07 is reserved */
-        DeviceTrackball = 0x08,
-        DeviceTouchpad = 0x09
-    };
-
     struct DeviceConnectionEvent {
         DeviceIndex index{};
         uint16_t pid{};

@@ -85,8 +85,9 @@ std::shared_ptr<Device> Device::make(
 
 std::shared_ptr<Device> Device::make(
         Receiver* receiver, backend::hidpp::DeviceIndex index,
-        std::shared_ptr<DeviceManager> manager) {
-    auto ret = std::make_shared<DeviceWrapper>(receiver, index, std::move(manager));
+        std::shared_ptr<DeviceManager> manager,
+        backend::hidpp::DeviceType device_type) {
+    auto ret = std::make_shared<DeviceWrapper>(receiver, index, std::move(manager), device_type);
     ret->_self = ret;
     ret->_ipc_node->manage(ret);
     ret->_ipc_interface = ret->_ipc_node->make_interface<IPC>(ret.get());
@@ -124,11 +125,12 @@ Device::Device(std::shared_ptr<backend::raw::RawDevice> raw_device,
 }
 
 Device::Device(Receiver* receiver, hidpp::DeviceIndex index,
-               const std::shared_ptr<DeviceManager>& manager) :
+               const std::shared_ptr<DeviceManager>& manager,
+               hidpp::DeviceType device_type) :
         _hidpp20(hidpp20::Device::make(
                 receiver->rawReceiver(), index,
                 manager->config()->io_timeout.value_or(defaults::io_timeout))),
-        _path(receiver->path()), _index(index),
+        _path(receiver->path()), _index(index), _device_type(device_type),
         _config(_getConfig(manager, _hidpp20->name())),
         _profile_name(ipcgull::property_readable, ""),
         _manager(manager),
@@ -173,6 +175,10 @@ std::string Device::name() {
 
 uint16_t Device::pid() {
     return _hidpp20->pid();
+}
+
+hidpp::DeviceType Device::deviceType() const {
+    return _device_type;
 }
 
 void Device::sleep() {
