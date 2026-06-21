@@ -14,7 +14,7 @@ This `fork` branch carries SR_team's local Logitech workflow changes on top of u
 - Virtual touchpad gesture emulation for 3 and 4 finger gestures, with movement scale, direction inversion, and click fallback support.
 - Custom command actions for diverted buttons.
 - UPower battery publishing through virtual UHID devices, including charging state.
-- Arch package metadata for `logiops-local-git`, conflicting with stock `logiops` packages, loading `uhid`, and restarting a running daemon during package upgrades.
+- Arch package metadata for `logiops-local-git`, conflicting with stock `logiops` packages, loading `uhid`, restarting a running daemon during package upgrades, and recovering after system sleep.
 
 ![UPower battery state for Logitech devices](docs/images/upower-logitech-battery.png)
 
@@ -142,7 +142,7 @@ cd pkgbuild
 makepkg -sriCc
 ```
 
-The package installs `logiops-local-git`, conflicts with `logiops` and `logiops-git`, provides `logiops`, writes `/usr/lib/modules-load.d/logiops.conf` to load `uhid` at boot, tries `modprobe uhid` on install or upgrade, and restarts `logid.service` only when the old instance is already running.
+The package installs `logiops-local-git`, conflicts with `logiops` and `logiops-git`, provides `logiops`, writes `/usr/lib/modules-load.d/logiops.conf` to load `uhid` at boot, tries `modprobe uhid` on install or upgrade, restarts `logid.service` only when the old instance is already running, and installs a system sleep hook that try-restarts the running daemon after resume.
 
 ## Building
 
@@ -155,7 +155,7 @@ cmake -DCMAKE_BUILD_TYPE=Release ..
 make
 ```
 
-For this fork, the Arch package above is preferred because it also installs the `uhid` boot config and package upgrade hook. For manual builds, run `sudo make install` after building. You can set the daemon to start at boot by running `sudo systemctl enable logid` or `sudo systemctl enable --now logid` if you want to enable and start the daemon.
+For this fork, the Arch package above is preferred because it also installs the `uhid` boot config, package upgrade hook, and system sleep recovery hook. For manual builds, run `sudo make install` after building. You can set the daemon to start at boot by running `sudo systemctl enable logid` or `sudo systemctl enable --now logid` if you want to enable and start the daemon.
 
 ## Development
 

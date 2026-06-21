@@ -3,7 +3,7 @@
 pkgname=logiops-local-git
 _pkgname=logiops
 epoch=1
-pkgver=0.3.5.r17.g8eb4a61
+pkgver=0.3.5.r20.g6762351
 pkgrel=1
 pkgdesc="An unofficial driver for Logitech HID++>2.0 mice and keyboard"
 arch=('x86_64')
@@ -36,4 +36,7 @@ package() {
 
     install -dm755 "$pkgdir/usr/lib/modules-load.d"
     printf 'uhid\n' > "$pkgdir/usr/lib/modules-load.d/logiops.conf"
+
+    install -Dm755 "$startdir/logiops-system-sleep" \
+        "$pkgdir/usr/lib/systemd/system-sleep/logiops"
 }

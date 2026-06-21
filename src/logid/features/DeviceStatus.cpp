@@ -16,6 +16,7 @@
  *
  */
 #include <features/DeviceStatus.h>
+#include <util/log.h>
 #include <util/task.h>
 
 using namespace logid::features;
@@ -47,8 +48,16 @@ void DeviceStatus::listen() {
                      auto event = hidpp20::WirelessDeviceStatus::statusBroadcastEvent(report);
                      if (event.reconnection || event.reconfNeeded)
                          run_task_after([self_weak]() {
-                             if (auto self = self_weak.lock())
-                                 self->_device->wakeup();
+                             if (auto self = self_weak.lock()) {
+                                 try {
+                                     self->_device->wakeup();
+                                 } catch (std::exception& e) {
+                                     logPrintf(DEBUG, "Failed to reconfigure %s "
+                                                      "after wireless status broadcast: %s",
+                                               self->_device->name().c_str(),
+                                               e.what());
+                                 }
+                             }
                          }, std::chrono::milliseconds(100));
                  }
                 });
