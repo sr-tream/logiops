@@ -114,6 +114,7 @@ void BatteryStatus::_readAndPublish(const char *context) {
   std::string selected_source;
   std::optional<uint8_t> selected_capacity;
   int selected_priority = -1;
+  bool selected_reported_capacity = false;
   bool any_charging = false;
 
   for (auto &reader : _readers) {
@@ -123,15 +124,19 @@ void BatteryStatus::_readAndPublish(const char *context) {
       if (!capacity)
         continue;
 
+      const bool reported_capacity = _hasReportedCapacity(status);
       any_charging = any_charging || _charging(status);
 
-      if (!selected || reader.priority > selected_priority ||
-          (reader.priority == selected_priority &&
-           *capacity > selected_capacity.value_or(0))) {
+      if (!selected || (reported_capacity && !selected_reported_capacity) ||
+          (reported_capacity == selected_reported_capacity &&
+           (reader.priority > selected_priority ||
+            (reader.priority == selected_priority &&
+             *capacity > selected_capacity.value_or(0))))) {
         selected = status;
         selected_source = reader.source;
         selected_capacity = capacity;
         selected_priority = reader.priority;
+        selected_reported_capacity = reported_capacity;
       }
     } catch (std::exception &e) {
       logPrintf(DEBUG, "Failed to read battery status for %s: %s",
@@ -259,6 +264,11 @@ BatteryStatus::_capacity(const HidppBatteryStatus &status) const {
     return inferred;
 
   return std::nullopt;
+}
+
+bool BatteryStatus::_hasReportedCapacity(
+    const HidppBatteryStatus &status) const {
+  return status.level.has_value();
 }
 
 bool BatteryStatus::_charging(const HidppBatteryStatus &status) const {

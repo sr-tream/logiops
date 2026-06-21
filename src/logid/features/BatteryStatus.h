@@ -59,6 +59,9 @@ private:
   [[nodiscard]] std::optional<uint8_t>
   _capacity(const HidppBatteryStatus &status) const;
 
+  [[nodiscard]] bool
+  _hasReportedCapacity(const HidppBatteryStatus &status) const;
+
   [[nodiscard]] bool _charging(const HidppBatteryStatus &status) const;
 
   [[nodiscard]] UhidBatteryDevice::DeviceKind _deviceKind() const;
