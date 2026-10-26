@@ -46,6 +46,8 @@ namespace logid::backend::hidpp20 {
 
         [[nodiscard]] uint8_t featureIndex() const;
 
+        [[nodiscard]] uint8_t featureVersion() const;
+
         virtual ~Feature() = default;
 
     protected:
@@ -57,6 +59,7 @@ namespace logid::backend::hidpp20 {
 
         Device* const _device;
         uint8_t _index;
+        uint8_t _version = 0;
     };
 }
 

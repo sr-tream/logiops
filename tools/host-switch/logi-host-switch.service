@@ -1,0 +1,21 @@
+[Unit]
+Description=Follow Logitech keyboard host switch with monitor and mouse
+Wants=logid.service
+After=logid.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /usr/local/lib/logi-host-switch/logi-host-switch.py
+Restart=on-failure
+RestartSec=3
+StateDirectory=logi-host-switch
+CacheDirectory=logi-host-switch
+Environment=XDG_CACHE_HOME=/var/cache/logi-host-switch
+Environment=XDG_STATE_HOME=/var/lib/logi-host-switch
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=graphical.target

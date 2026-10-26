@@ -173,12 +173,15 @@ void DeviceManager::removeDevice(std::string path) {
     auto receiver = _receivers.find(path);
 
     if (receiver != _receivers.end()) {
+        for (const auto& entry : receiver->second->devices())
+            entry.second->sleep();
         _ipc_receivers->receiverRemoved(receiver->second);
         _receivers.erase(receiver);
         logPrintf(INFO, "Receiver on %s disconnected", path.c_str());
     } else {
         auto device = _devices.find(path);
         if (device != _devices.end()) {
+            device->second->sleep();
             _ipc_devices->deviceRemoved(device->second);
             _devices.erase(device);
             logPrintf(INFO, "Device on %s disconnected", path.c_str());

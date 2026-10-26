@@ -14,6 +14,8 @@ This `fork` branch carries SR_team's local Logitech workflow changes on top of u
 - Virtual touchpad gesture emulation for 3 and 4 finger gestures, with movement scale, direction inversion, and click fallback support.
 - Custom command actions for diverted buttons.
 - UPower battery publishing through virtual UHID devices, including charging state.
+- Easy-Switch host notifications and a [monitor/mouse follow service](tools/host-switch/README.md) for the PC/PS5 setup.
+- Per-device `on_connect` / `on_disconnect` script hooks, executed in order without blocking device I/O.
 - Arch package metadata for `logiops-local-git`, conflicting with stock `logiops` packages, loading `uhid`, restarting a running daemon during package upgrades, and recovering after system sleep.
 
 ![UPower battery state for Logitech devices](docs/images/upower-logitech-battery.png)
@@ -24,6 +26,45 @@ This `fork` branch carries SR_team's local Logitech workflow changes on top of u
 You may also refer to [logid.example.cfg](./logid.example.cfg) for an example.
 
 Default location for the configuration file is /etc/logid.cfg, but another can be specified using the `-c` flag.
+
+<details>
+<summary>Run scripts when a device connects or disconnects</summary>
+
+Add hooks to a device entry in `/etc/logid.cfg`. Both the flat configuration and
+the configuration with `default_profile` / `profiles` accept these fields at
+the device level:
+
+```cfg
+name: "MX Keys S";
+on_connect: {
+    command: "/usr/local/bin/keyboard-connected";
+    args: ["optional argument"];
+};
+on_disconnect: {
+    command: "/usr/local/bin/keyboard-disconnected";
+};
+```
+
+Hooks run as the daemon's user (normally root). `command` is an executable or
+script with a shebang, and `args` are passed literally without a shell. Desktop
+commands can use a `runuser` wrapper as in the button examples below.
+
+`on_connect` runs once when the device is first discovered, including daemon
+startup, and when an inactive device reconnects. Repeated wakeup messages do
+not repeat the hook. Reconnect hooks run before HID++ reconfiguration finishes.
+`on_disconnect` runs when the link goes inactive or a connected device or its
+receiver is removed. Daemon shutdown itself does not synthesize disconnects.
+Sleep, power-off, radio loss and Easy-Switch can all produce the same link event.
+
+Hooks for each device run in event order on a separate command queue, including
+waiting for the previous script to exit. Keep scripts short: a long-running
+script delays later hooks for that device. Other devices and HID I/O continue
+independently. Failures are logged and do not stop the queue.
+
+For a monitor/mouse workflow using these hooks, see the
+[PC/PS5 example](tools/host-switch/README.md).
+
+</details>
 
 <details>
 <summary>Run custom commands from a Logitech button</summary>

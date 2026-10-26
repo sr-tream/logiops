@@ -13,6 +13,7 @@ find_package(PkgConfig REQUIRED)
 add_executable(logid
         logid.cpp
         util/log.cpp
+        util/CommandQueue.cpp
         config/config.cpp
         InputDevice.cpp
         TouchpadDevice.cpp
@@ -26,6 +27,7 @@ add_executable(logid
         features/HiresScroll.cpp
         features/RemapButton.cpp
         features/DeviceStatus.cpp
+        features/HostSwitch.cpp
         features/ThumbWheel.cpp
         features/BatteryStatus.cpp
         actions/Action.cpp
@@ -94,6 +96,14 @@ include_directories(. ${EVDEV_INCLUDE_DIR} ${LIBUDEV_INCLUDE_DIRECTORIES} ${IPCG
 
 target_link_libraries(logid ${CMAKE_THREAD_LIBS_INIT} ${EVDEV_LIBRARY} config++
         ${LIBUDEV_LIBRARIES} ipcgull)
+
+# Explicit target: no hardware access or additional test framework required.
+add_executable(connection-hooks-test EXCLUDE_FROM_ALL
+        ../../tools/host-switch/test_connection_hooks.cpp
+        util/CommandQueue.cpp util/log.cpp config/config.cpp)
+target_link_libraries(connection-hooks-test ${CMAKE_THREAD_LIBS_INIT} config++ ipcgull)
+set_target_properties(connection-hooks-test PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 install(TARGETS logid DESTINATION bin)
 

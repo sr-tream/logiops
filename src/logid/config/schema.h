@@ -330,27 +330,43 @@ namespace logid::config {
 
     typedef map<uint16_t, Button, string_literal_of<keys::cid>> RemapButton;
 
+    struct ConnectionCommand : public group {
+        std::string command;
+        std::optional<std::list<std::string>> args;
+
+        ConnectionCommand() : group({"command", "args"},
+                                     &ConnectionCommand::command,
+                                     &ConnectionCommand::args) {}
+    };
+
     struct Profile : public group {
         std::optional<DPI> dpi;
         std::optional<SmartShift> smartshift;
         std::optional<std::variant<bool, HiresScroll>> hiresscroll;
         std::optional<ThumbWheel> thumbwheel;
         std::optional<RemapButton> buttons;
+        // Also accepted in legacy flat device configurations; migrated to Device.
+        std::optional<ConnectionCommand> on_connect;
+        std::optional<ConnectionCommand> on_disconnect;
 
         Profile() : group({"dpi", "smartshift", "hiresscroll",
-                           "buttons", "thumbwheel"},
+                           "buttons", "thumbwheel", "on_connect", "on_disconnect"},
                           &Profile::dpi, &Profile::smartshift,
                           &Profile::hiresscroll, &Profile::buttons,
-                          &Profile::thumbwheel) {}
+                          &Profile::thumbwheel, &Profile::on_connect,
+                          &Profile::on_disconnect) {}
     };
 
     struct Device : public group {
         ipcgull::property<std::string> default_profile;
         map<std::string, Profile, string_literal_of<keys::name>> profiles;
+        std::optional<ConnectionCommand> on_connect;
+        std::optional<ConnectionCommand> on_disconnect;
 
-        Device() : group({"default_profile", "profiles"},
+        Device() : group({"default_profile", "profiles", "on_connect", "on_disconnect"},
                          &Device::default_profile,
-                         &Device::profiles),
+                         &Device::profiles, &Device::on_connect,
+                         &Device::on_disconnect),
                    default_profile(ipcgull::property_full_permissions, "") {
         }
     };

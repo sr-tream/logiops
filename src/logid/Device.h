@@ -25,6 +25,7 @@
 #include <ipcgull/node.h>
 #include <ipcgull/interface.h>
 #include <Configuration.h>
+#include <util/CommandQueue.h>
 
 namespace logid {
     class DeviceManager;
@@ -145,6 +146,8 @@ namespace logid {
                 const std::string& name);
 
         void _init();
+        void _runConnectionHook(const std::optional<config::ConnectionCommand>& hook,
+                                const char* event);
 
         /* Adds a feature without calling an error if unsupported */
         template<typename T>
@@ -156,6 +159,7 @@ namespace logid {
         }
 
         std::shared_ptr<backend::hidpp20::Device> _hidpp20;
+        CommandQueue _connection_commands;
         std::string _path;
         backend::hidpp::DeviceIndex _index;
         backend::hidpp::DeviceType _device_type = backend::hidpp::DeviceUnknown;

@@ -1,0 +1,11 @@
+{
+  "keyboard": "MX Keys S",
+  "mouse": "MX Master 4",
+  "local_host": 2,
+  "remote_host": 1,
+  "follow_mouse": true,
+  "departure_mode": "host_event",
+  "ddc_adapter": "NVIDIA i2c adapter 4 at 1:00.0",
+  "local_input": "0x0f",
+  "remote_input": "0x11"
+}

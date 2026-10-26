@@ -51,6 +51,7 @@ Feature::Feature(Device* dev, uint16_t _id) : _device(dev) {
         try {
             auto getFunc_resp = this->callFunction(Root::GetFeature, getFunc_req);
             _index = getFunc_resp[0];
+            _version = getFunc_resp[2];
         } catch (Error& e) {
             if (e.code() == Error::InvalidFeatureIndex)
                 throw UnsupportedFeature(_id);
@@ -65,4 +66,8 @@ Feature::Feature(Device* dev, uint16_t _id) : _device(dev) {
 
 uint8_t Feature::featureIndex() const {
     return _index;
+}
+
+uint8_t Feature::featureVersion() const {
+    return _version;
 }

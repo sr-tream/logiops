@@ -23,6 +23,7 @@
 #include <features/RemapButton.h>
 #include <features/HiresScroll.h>
 #include <features/DeviceStatus.h>
+#include <features/HostSwitch.h>
 #include <features/ThumbWheel.h>
 #include <features/BatteryStatus.h>
 #include <backend/hidpp20/features/Reset.h>
@@ -67,6 +68,7 @@ std::shared_ptr<Device> Device::make(
     ret->_self = ret;
     ret->_ipc_node->manage(ret);
     ret->_ipc_interface = ret->_ipc_node->make_interface<IPC>(ret.get());
+    ret->_runConnectionHook(ret->_config.on_connect, "connect");
     return ret;
 }
 
@@ -80,6 +82,7 @@ std::shared_ptr<Device> Device::make(
     ret->_self = ret;
     ret->_ipc_node->manage(ret);
     ret->_ipc_interface = ret->_ipc_node->make_interface<IPC>(ret.get());
+    ret->_runConnectionHook(ret->_config.on_connect, "connect");
     return ret;
 }
 
@@ -91,6 +94,7 @@ std::shared_ptr<Device> Device::make(
     ret->_self = ret;
     ret->_ipc_node->manage(ret);
     ret->_ipc_interface = ret->_ipc_node->make_interface<IPC>(ret.get());
+    ret->_runConnectionHook(ret->_config.on_connect, "connect");
     return ret;
 }
 
@@ -157,6 +161,7 @@ void Device::_init() {
     _addFeature<features::HiresScroll>("hiresscroll");
     _addFeature<features::RemapButton>("remapbutton");
     _addFeature<features::DeviceStatus>("devicestatus");
+    _addFeature<features::HostSwitch>("hostswitch");
     _addFeature<features::ThumbWheel>("thumbwheel");
     _addFeature<features::BatteryStatus>("batterystatus");
 
@@ -189,6 +194,8 @@ void Device::sleep() {
 
         logPrintf(INFO, "%s:%d fell asleep.", _path.c_str(), _index);
         _awake = false;
+        // Queue under the state lock so concurrent wakeups cannot overtake it.
+        _runConnectionHook(_config.on_disconnect, "disconnect");
     }
 
     for (auto& feature: _features)
@@ -198,24 +205,39 @@ void Device::sleep() {
 }
 
 void Device::wakeup() {
-    for (auto& feature: _features)
-        feature.second->onWakeup();
-
-    reconfigure();
-
     bool notify = false;
     {
         std::lock_guard<std::mutex> lock(_state_lock);
         if (!_awake) {
             _awake = true;
             notify = true;
+            _runConnectionHook(_config.on_connect, "connect");
         }
     }
 
-    if (notify)
+    if (notify) {
         _ipc_interface->notifyStatus();
+    }
+
+    // Publish the restored link before potentially slow HID++ reconfiguration.
+    for (auto& feature: _features)
+        feature.second->onWakeup();
+
+    reconfigure();
 
     logPrintf(INFO, "%s:%d woke up.", _path.c_str(), _index);
+}
+
+void Device::_runConnectionHook(
+        const std::optional<config::ConnectionCommand>& hook, const char* event) {
+    if (!hook || hook->command.empty())
+        return;
+    std::vector<std::string> command{hook->command};
+    if (hook->args)
+        command.insert(command.end(), hook->args->begin(), hook->args->end());
+    const auto context = name() + ": on_" + event;
+    logPrintf(INFO, "%s: queued %s", context.c_str(), hook->command.c_str());
+    _connection_commands.run(std::move(command), context);
 }
 
 void Device::reconfigure() {
@@ -387,6 +409,11 @@ config::Device& Device::_getConfig(
     if (std::holds_alternative<config::Profile>(device)) {
         config::Device d;
         d.profiles["default"] = std::get<config::Profile>(device);
+        auto& profile = d.profiles["default"];
+        d.on_connect = std::move(profile.on_connect);
+        d.on_disconnect = std::move(profile.on_disconnect);
+        profile.on_connect.reset();
+        profile.on_disconnect.reset();
         d.default_profile = "default";
         device = std::move(d);
     }

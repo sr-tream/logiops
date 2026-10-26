@@ -152,6 +152,7 @@ void Receiver::removeDevice(hidpp::DeviceIndex index) {
         manager_lock = std::unique_lock<std::mutex>(manager->mutex());
     auto device = _devices.find(index);
     if (device != _devices.end()) {
+        device->second->sleep();
         if (auto manager = _manager.lock())
             manager->removeExternalDevice(device->second);
         _devices.erase(device);
